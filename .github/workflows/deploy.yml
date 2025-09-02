@@ -1,0 +1,53 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (e.g., dev, prod)'
+        required: true
+        default: 'dev'
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download encrypted state file
+        uses: actions/download-artifact@v4
+        with:
+          name: tfstate-${{ github.event.inputs.environment }}
+          path: environments/${{ github.event.inputs.environment }}
+        continue-on-error: true
+
+      - name: Decrypt state file
+        run: |
+          if [ -f "environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc" ]; then
+            openssl enc -aes-256-cbc -d -in environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -out environments/${{ github.event.inputs.environment }}/terraform.tfstate -k "${{ secrets.ENCRYPTION_KEY }}"
+          else
+            echo "No state file found, assuming first run."
+          fi
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Deploy Environment
+        run: make deploy ENV=${{ github.event.inputs.environment }}
+
+      - name: Encrypt state file
+        run: |
+          openssl enc -aes-256-cbc -salt -in environments/${{ github.event.inputs.environment }}/terraform.tfstate -out environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -k "${{ secrets.ENCRYPTION_KEY }}"
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Upload encrypted state file
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfstate-${{ github.event.inputs.environment }}
+          path: environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc
