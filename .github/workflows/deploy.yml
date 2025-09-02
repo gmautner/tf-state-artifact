@@ -43,12 +43,18 @@ jobs:
         run: make deploy ENV=${{ github.event.inputs.environment }}
 
       - name: Encrypt state file
+        if: always()
         run: |
-          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 -in environments/${{ github.event.inputs.environment }}/terraform.tfstate -out environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -k "${{ secrets.ENCRYPTION_KEY }}"
+          if [ -f "environments/${{ github.event.inputs.environment }}/terraform.tfstate" ]; then
+            openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 -in environments/${{ github.event.inputs.environment }}/terraform.tfstate -out environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -k "$ENCRYPTION_KEY"
+          else
+            echo "No plaintext state file to encrypt."
+          fi
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
       - name: Upload encrypted state file
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tfstate-${{ github.event.inputs.environment }}
