@@ -7,4 +7,4 @@ endif
 	@echo "Deploying to environment: $(ENV)"
 	terraform init -backend-config="path=environments/$(ENV)/terraform.tfstate"
 	terraform apply -auto-approve
-	@echo "Simulating failure after apply" && false
+	# @echo "Simulating failure after apply" && false
