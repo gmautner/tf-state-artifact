@@ -18,17 +18,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download encrypted state file
-        uses: actions/download-artifact@v5
+        uses: dawidd6/action-download-artifact@v11
         with:
           name: tfstate-${{ github.event.inputs.environment }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{secrets.GITHUB_TOKEN}}
           path: environments/${{ github.event.inputs.environment }}
         continue-on-error: true
 
       - name: Decrypt state file
         run: |
           if [ -f "environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc" ]; then
-            openssl enc -aes-256-cbc -d -in environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -out environments/${{ github.event.inputs.environment }}/terraform.tfstate -k "${{ secrets.ENCRYPTION_KEY }}"
+            openssl enc -aes-256-cbc -d -pbkdf2 -iter 100000 -in environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -out environments/${{ github.event.inputs.environment }}/terraform.tfstate -k "${{ secrets.ENCRYPTION_KEY }}"
           else
             echo "No state file found, assuming first run."
           fi
@@ -43,7 +43,7 @@ jobs:
 
       - name: Encrypt state file
         run: |
-          openssl enc -aes-256-cbc -salt -in environments/${{ github.event.inputs.environment }}/terraform.tfstate -out environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -k "${{ secrets.ENCRYPTION_KEY }}"
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 100000 -in environments/${{ github.event.inputs.environment }}/terraform.tfstate -out environments/${{ github.event.inputs.environment }}/terraform.tfstate.enc -k "${{ secrets.ENCRYPTION_KEY }}"
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
